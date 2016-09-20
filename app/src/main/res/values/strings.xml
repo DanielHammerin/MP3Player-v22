@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">MP3Player</string>
+    <string name="title_activity_main">MP3 Player</string>
+    <string name="nosd">Media storage is not available</string>
+    <string name="error">Player crashed</string>
+    <string name="stop_playback">Stop playback</string>
+</resources>

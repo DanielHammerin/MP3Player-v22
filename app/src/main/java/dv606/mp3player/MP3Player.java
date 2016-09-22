@@ -283,10 +283,8 @@ public class MP3Player extends AppCompatActivity {
         int id = item.getItemId();
 
         if (id == R.id.closeApp) {
-            MusicService.getNotificationManager().cancelAll();
+            musicservice.tearDownNotification();
             this.finish();
-            this.moveTaskToBack(true);
-            System.exit(0);
         }
         return super.onOptionsItemSelected(item);
     }

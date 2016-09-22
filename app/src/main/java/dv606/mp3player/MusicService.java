@@ -64,6 +64,10 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
 
         startForeground(NOTIFICATION_ID, notification);
     }
+    public void tearDownNotification() {
+        stopForeground(true);
+        notificationManager.cancel(NOTIFICATION_ID);
+    }
 
     /**
      * Uses mediaPlayer to play the selected song.
@@ -101,14 +105,12 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
     @Override
     public void onTaskRemoved(Intent rootIntent) {
         super.onTaskRemoved(rootIntent);
+        stopForeground(true);
         notificationManager.cancel(NOTIFICATION_ID);
     }
 
     @Override
     public void onDestroy() {
-        notificationManager.cancelAll();
-        notificationManager.cancel(NOTIFICATION_ID);
-        stopForeground(true);
         super.onDestroy();
     }
 

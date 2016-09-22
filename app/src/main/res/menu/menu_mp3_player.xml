@@ -1,5 +1,11 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools" tools:context=".MP3Player">
-
+    xmlns:tools="http://schemas.android.com/tools"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    tools:context=".MP3Player">
+    <item
+        android:id="@+id/closeApp"
+        android:orderInCategory="100"
+        android:title="Close App"
+        app:showAsAction="never" />
 </menu>
 

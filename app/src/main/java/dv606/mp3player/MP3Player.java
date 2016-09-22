@@ -4,15 +4,19 @@ import android.app.ListActivity;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.database.Cursor;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.IBinder;
 import android.provider.MediaStore;
+import android.provider.SyncStateContract;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.content.res.ResourcesCompat;
@@ -49,30 +53,40 @@ public class MP3Player extends AppCompatActivity {
     // Currently, if you exit/re-enter activity, a new instance of player is created
     // and you can't, e.g., stop the playback for the previous instance,
     // and if you click a song, you will hear another audio stream started
-    public final MediaPlayer mediaPlayer = new MediaPlayer();
+
     boolean playing = false;
-    MusicService musicservice;
+    boolean isBound;
+    private MusicService musicservice;
+
     FloatingActionButton playPauseButton = null;
     FloatingActionButton prevButton = null;
     FloatingActionButton nextButton = null;
-    private int currentSongPos;
-    ArrayList<Song> songs = null;
-    private static MP3Player instance;
+
+    public static TextView currSongName = null;
+    public static TextView currSongArtist = null;
+
+    public static int currentSongPos;
+    public static ArrayList<Song> songs = null;
 
     @Override
     public void onStart() {
         super.onStart();
-        instance = this;
     }
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_mp3_player);
-        Toolbar myToolbar = (Toolbar) findViewById(R.id.my_toolbar);
-        setSupportActionBar(myToolbar);
+
+        playPauseButton = (FloatingActionButton) findViewById(R.id.play_pause);
+        nextButton = (FloatingActionButton) findViewById(R.id.next_song);
+        prevButton = (FloatingActionButton) findViewById(R.id.prev_song);
+
+        currSongName = (TextView) findViewById(R.id.currentSongName);
+        currSongArtist = (TextView) findViewById(R.id.currentSongArtist);
 
         Intent intentt = new Intent(this, MusicService.class);
-        this.startService(intentt);
+        startService(intentt);
+        isBound = bindService(intentt, connection, Context.BIND_AUTO_CREATE);
 
         final ListView listView = (ListView) findViewById(R.id.list_view);
         songs = songList();
@@ -82,38 +96,33 @@ public class MP3Player extends AppCompatActivity {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int pos, long arg3) {
                 currentSongPos = pos;
-                play(songs.get(pos));
+                musicservice.play(songs.get(pos));
             }
         });
-
-        NotificationManager alarmNotificationManager = (NotificationManager) this
-                .getSystemService(Context.NOTIFICATION_SERVICE);
-
-        PendingIntent contentIntent = PendingIntent.getActivity(this, 0,
-                new Intent(this, MP3Player.class), 0);
-
-        NotificationCompat.Builder alarmNotificationBuilder = new NotificationCompat.Builder(this)
-                .setContentTitle("PLAYER")
-                .setContentText("")
-                .setAutoCancel(true)
-                .setSmallIcon(android.R.drawable.ic_media_play)
-                .setContentIntent(contentIntent);
-
-
-        alarmNotificationBuilder.setContentIntent(contentIntent);
-        alarmNotificationManager.notify(1, alarmNotificationBuilder.build());
-
-        Intent intent = new Intent(this, MP3Player.class);
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_SINGLE_TOP);
-
-        intent.setAction(Intent.ACTION_MAIN);
-        intent.addCategory(Intent.CATEGORY_LAUNCHER);
-        startActivity(intent);
-        //musicservice.startService();
     }
+
+    private ServiceConnection connection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            musicservice = ((MusicService.MusicBinder) service).getService();
+        }
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            musicservice = null;
+        }
+    };
+
+    public static void setCurrentSongData(String name, String artist) {
+        currSongName.setText(name);
+        currSongArtist.setText(artist);
+    }
+
     @Override
-    public void onBackPressed() {
-        moveTaskToBack(true);
+    protected void onDestroy() {
+        super.onDestroy();
+        if(isBound) {
+            unbindService(connection);
+        }
     }
 
     @Override
@@ -123,7 +132,7 @@ public class MP3Player extends AppCompatActivity {
         playPauseButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                if (mediaPlayer.isPlaying()) {
+                if (musicservice.getMediaPlayer().isPlaying()) {
                     playing = false;
                     playPauseButton.setImageDrawable(ResourcesCompat.getDrawable(getResources(),android.R.drawable.ic_media_play, null));
                     pause();
@@ -151,6 +160,40 @@ public class MP3Player extends AppCompatActivity {
                 previous();
             }
         });
+    }
+    private void resume() {
+        try {
+            musicservice.getMediaPlayer().start();
+
+        }catch (Exception e) {
+            Toast.makeText(this, R.string.error, Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void pause() {
+        try {
+            if (musicservice.getMediaPlayer().isPlaying()) musicservice.getMediaPlayer().pause(); // pause the current song
+
+        } catch (Exception e) {
+            Toast.makeText(this, R.string.error, Toast.LENGTH_SHORT).show();
+            e.printStackTrace();
+        }
+    }
+
+    private void next() {
+        try {
+            if (musicservice.getMediaPlayer().isPlaying()) musicservice.play(musicservice.getCurrentSongPlaying().getNext());
+        }catch (Exception e) {
+            Toast.makeText(this, R.string.error, Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void previous() {
+        try {
+            if (musicservice.getMediaPlayer().isPlaying()) musicservice.play(musicservice.getCurrentSongPlaying().getPrev());
+        }catch (Exception e) {
+            Toast.makeText(this, R.string.error, Toast.LENGTH_SHORT).show();
+        }
     }
 
     private class PlayListAdapter extends ArrayAdapter<Song> {
@@ -212,9 +255,10 @@ public class MP3Player extends AppCompatActivity {
             do {
                 Song song = new Song(music.getString(0), music.getString(1), music.getString(2), music.getString(3));
 
-                if (prev != null) // play the songs in a playlist, if possible
+                if (prev != null) { // play the songs in a playlist, if possible
                     prev.setNext(song);
-
+                    song.setPrev(prev);
+                }
                 prev = song;
                 songs.add(song);
             }
@@ -223,78 +267,9 @@ public class MP3Player extends AppCompatActivity {
             prev.setNext(songs.get(0)); // play in loop
         }
         music.close();
-
+        songs.get(0).setPrev(songs.get(songs.size()-1));
+        songs.get(songs.size()-1).setNext(songs.get(0));
         return songs;
-    }
-
-    /**
-     * Uses mediaPlayer to play the selected song.
-     * The sequence of media player operations is crucial for it to work.
-     *
-     * @param song
-     */
-    private void play(final Song song) {
-        if (song == null) return;
-        playing = true;
-        playPauseButton.setImageDrawable(ResourcesCompat.getDrawable(getResources(),android.R.drawable.ic_media_pause, null));
-        currentSongPos = songs.indexOf(song);
-        song.setPrev(songs.get(currentSongPos - 1));
-        song.setNext(songs.get(currentSongPos + 1));
-
-        try {
-            if (mediaPlayer.isPlaying()) mediaPlayer.stop(); // stop the current song
-
-            mediaPlayer.reset(); // reset the resource of player
-            mediaPlayer.setDataSource(this, Uri.parse(song.getPath())); // set the song to play
-            mediaPlayer.setAudioStreamType(AudioManager.STREAM_NOTIFICATION); // select the audio stream
-            mediaPlayer.prepare(); // prepare the resource
-            mediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() // handle the completion
-            {
-                @Override
-                public void onCompletion(MediaPlayer mp) {
-                    play(song.getNext());
-                }
-            });
-            mediaPlayer.start(); // play!
-        } catch (Exception e) {
-            Toast.makeText(this, R.string.error, Toast.LENGTH_SHORT).show();
-            e.printStackTrace();
-        }
-    }
-
-    private void resume() {
-        try {
-            mediaPlayer.start();
-
-        }catch (Exception e) {
-            Toast.makeText(this, R.string.error, Toast.LENGTH_SHORT).show();
-        }
-    }
-
-    private void pause() {
-        try {
-            if (mediaPlayer.isPlaying()) mediaPlayer.pause(); // pause the current song
-
-        } catch (Exception e) {
-            Toast.makeText(this, R.string.error, Toast.LENGTH_SHORT).show();
-            e.printStackTrace();
-        }
-    }
-
-    private void next() {
-        try {
-            if (mediaPlayer.isPlaying()) play(songs.get(currentSongPos).getNext());
-        }catch (Exception e) {
-            Toast.makeText(this, R.string.error, Toast.LENGTH_SHORT).show();
-        }
-    }
-
-    private void previous() {
-        try {
-            if (mediaPlayer.isPlaying()) play(songs.get(currentSongPos).getPrev());
-        }catch (Exception e) {
-            Toast.makeText(this, R.string.error, Toast.LENGTH_SHORT).show();
-        }
     }
 
     @Override
@@ -303,23 +278,16 @@ public class MP3Player extends AppCompatActivity {
         inflater.inflate(R.menu.menu_mp3_player, menu);
         return super.onCreateOptionsMenu(menu);
     }
-/*
-    @Override
-    public boolean onTouchEvent(MotionEvent event) {
-
-        return false;
-    }
-*/
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        switch (item.getItemId()) {
+        int id = item.getItemId();
 
-            default:
-                return super.onOptionsItemSelected(item);
+        if (id == R.id.closeApp) {
+            MusicService.getNotificationManager().cancelAll();
+            this.finish();
+            this.moveTaskToBack(true);
+            System.exit(0);
         }
-    }
-
-    public static MP3Player getInstance() {
-        return instance;
+        return super.onOptionsItemSelected(item);
     }
 }

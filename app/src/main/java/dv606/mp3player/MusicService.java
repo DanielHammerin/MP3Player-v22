@@ -22,6 +22,9 @@ import android.support.v4.content.res.ResourcesCompat;
 import android.util.Log;
 import android.widget.Toast;
 
+import java.sql.Time;
+import java.util.concurrent.TimeUnit;
+
 /**
  * Created by Daniel on 2016-09-20.
  */
@@ -33,6 +36,7 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
     public MediaPlayer mediaPlayer;
     private MusicBinder musicBinder = null;
     int NOTIFICATION_ID = 1337;
+
     public void onCreate() {
         super.onCreate();
         if (mediaPlayer == null) {
@@ -76,9 +80,19 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
      * @param song
      */
     public void play(final Song song) {
+        long songDuration;
         if (song == null) return;
         currentSongPlaying = song;
         MP3Player.setCurrentSongData(currentSongPlaying.getName(), currentSongPlaying.getArtist());
+
+        MP3Player.currSongTime.setText("0:00");
+        songDuration = currentSongPlaying.getDuration();
+        MP3Player.currSongLength.setText(
+        String.format("%d:%02d",
+                TimeUnit.MILLISECONDS.toMinutes(songDuration),
+                TimeUnit.MILLISECONDS.toSeconds(songDuration) -
+                TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toMinutes(songDuration))
+        ));
 
         try {
             if (mediaPlayer.isPlaying()) mediaPlayer.stop(); // stop the current song
@@ -92,6 +106,7 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
                 @Override
                 public void onCompletion(MediaPlayer mp) {
                     play(song.getNext());
+                    MP3Player.seekBar.setProgress(0);
                 }
             });
             mediaPlayer.start(); // play!

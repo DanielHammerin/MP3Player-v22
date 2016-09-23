@@ -14,15 +14,17 @@ public class Song {
     private final String name;
     private final String path;
 
+    private final long duration;
     private Song next = null;
     private Song prev = null;
 
-    public Song(String artist, String album, String name, String path)
+    public Song(String artist, String album, String name, String path, long dur)
     {
         this.artist = artist;
         this.album = album;
         this.name = name;
         this.path = path;
+        this.duration = dur;
     }
 
     public String getArtist()
@@ -58,6 +60,10 @@ public class Song {
     public void setPrev(Song song) {prev = song;}
 
     public Song getPrev() {return prev;}
+
+    public long getDuration() {
+        return duration;
+    }
 
     @Override
     public String toString()

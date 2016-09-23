@@ -1,43 +1,32 @@
 package dv606.mp3player;
 
-import android.app.ListActivity;
-import android.app.Notification;
-import android.app.NotificationManager;
-import android.app.PendingIntent;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.database.Cursor;
-import android.media.AudioManager;
-import android.media.MediaPlayer;
-import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
 import android.os.IBinder;
 import android.provider.MediaStore;
-import android.provider.SyncStateContract;
 import android.support.design.widget.FloatingActionButton;
-import android.support.v4.app.NotificationCompat;
 import android.support.v4.content.res.ResourcesCompat;
 import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
-import android.view.MotionEvent;
-import android.widget.MediaController.MediaPlayerControl;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
-import android.widget.EditText;
 import android.widget.ListView;
-import android.widget.MediaController;
+import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import java.util.ArrayList;
+import java.util.concurrent.TimeUnit;
 
 
 /**
@@ -57,13 +46,19 @@ public class MP3Player extends AppCompatActivity {
     boolean playing = false;
     boolean isBound;
     private MusicService musicservice;
+    Thread seekBarThread = null;
+    Runnable runnable;
 
     FloatingActionButton playPauseButton = null;
     FloatingActionButton prevButton = null;
     FloatingActionButton nextButton = null;
 
+    public static SeekBar seekBar;
+
     public static TextView currSongName = null;
     public static TextView currSongArtist = null;
+    public static TextView currSongLength = null;
+    public static TextView currSongTime = null;
 
     public static int currentSongPos;
     public static ArrayList<Song> songs = null;
@@ -72,6 +67,7 @@ public class MP3Player extends AppCompatActivity {
     public void onStart() {
         super.onStart();
     }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -83,6 +79,11 @@ public class MP3Player extends AppCompatActivity {
 
         currSongName = (TextView) findViewById(R.id.currentSongName);
         currSongArtist = (TextView) findViewById(R.id.currentSongArtist);
+
+        currSongLength = (TextView) findViewById(R.id.songLength);
+        currSongTime = (TextView) findViewById(R.id.currentSongTime);
+
+        seekBar = (SeekBar) findViewById(R.id.seekbar);
 
         Intent intentt = new Intent(this, MusicService.class);
         startService(intentt);
@@ -97,6 +98,63 @@ public class MP3Player extends AppCompatActivity {
             public void onItemClick(AdapterView<?> parent, View view, int pos, long arg3) {
                 currentSongPos = pos;
                 musicservice.play(songs.get(pos));
+                updateSeekBar();
+            }
+        });
+/*
+        runnable = new Runnable() {
+            @Override
+            public void run() {
+                while (true) {
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            long currentPos = 0;
+                            int length = musicservice.getMediaPlayer().getDuration();
+                            seekBar.setMax(length);
+                            while (musicservice.getMediaPlayer() != null && currentPos < length) {
+                                currentPos = musicservice.getMediaPlayer().getCurrentPosition();
+                                seekBar.setProgress((int) currentPos / 1000);
+                                currSongTime.setText(String.format("%d:%02d",
+                                        TimeUnit.MILLISECONDS.toMinutes(currentPos),
+                                        TimeUnit.MILLISECONDS.toSeconds(currentPos) -
+                                                TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toMinutes(currentPos))
+                                ));
+                                try {
+                                    Thread.sleep(1000);
+                                } catch (Exception e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+        };
+        seekBarThread = new Thread(runnable);
+        seekBarThread.start();
+*/
+    }
+
+    public void updateSeekBar() {
+        seekBar.setProgress(0);
+        seekBar.setMax((int) musicservice.getCurrentSongPlaying().getDuration() / 1000);
+        final Handler mHandler = new Handler();
+        runOnUiThread(new Runnable() {
+
+            @Override
+            public void run() {
+                if(musicservice.getMediaPlayer() != null){
+                    int mCurrentPosition = musicservice.getMediaPlayer().getCurrentPosition();
+                    seekBar.setProgress(mCurrentPosition / 1000);
+
+                    currSongTime.setText(String.format("%d:%02d",
+                            TimeUnit.MILLISECONDS.toMinutes(mCurrentPosition),
+                            TimeUnit.MILLISECONDS.toSeconds(mCurrentPosition) -
+                                    TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toMinutes(mCurrentPosition))
+                    ));
+                }
+                mHandler.postDelayed(this, 1000);
             }
         });
     }
@@ -106,6 +164,7 @@ public class MP3Player extends AppCompatActivity {
         public void onServiceConnected(ComponentName name, IBinder service) {
             musicservice = ((MusicService.MusicBinder) service).getService();
         }
+
         @Override
         public void onServiceDisconnected(ComponentName name) {
             musicservice = null;
@@ -120,7 +179,7 @@ public class MP3Player extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if(isBound) {
+        if (isBound) {
             unbindService(connection);
         }
     }
@@ -134,12 +193,11 @@ public class MP3Player extends AppCompatActivity {
             public void onClick(View view) {
                 if (musicservice.getMediaPlayer().isPlaying()) {
                     playing = false;
-                    playPauseButton.setImageDrawable(ResourcesCompat.getDrawable(getResources(),android.R.drawable.ic_media_play, null));
+                    playPauseButton.setImageDrawable(ResourcesCompat.getDrawable(getResources(), android.R.drawable.ic_media_play, null));
                     pause();
-                }
-                else {
+                } else {
                     playing = true;
-                    playPauseButton.setImageDrawable(ResourcesCompat.getDrawable(getResources(),android.R.drawable.ic_media_pause, null));
+                    playPauseButton.setImageDrawable(ResourcesCompat.getDrawable(getResources(), android.R.drawable.ic_media_pause, null));
                     resume();
                 }
             }
@@ -160,19 +218,41 @@ public class MP3Player extends AppCompatActivity {
                 previous();
             }
         });
+
+        seekBar = (SeekBar) findViewById(R.id.seekbar);
+        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                if (musicservice.mediaPlayer != null && fromUser) {
+                    musicservice.mediaPlayer.seekTo(progress * 1000);
+                }
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+
+            }
+        });
     }
+
     private void resume() {
         try {
             musicservice.getMediaPlayer().start();
 
-        }catch (Exception e) {
+        } catch (Exception e) {
             Toast.makeText(this, R.string.error, Toast.LENGTH_SHORT).show();
         }
     }
 
     private void pause() {
         try {
-            if (musicservice.getMediaPlayer().isPlaying()) musicservice.getMediaPlayer().pause(); // pause the current song
+            if (musicservice.getMediaPlayer().isPlaying())
+                musicservice.getMediaPlayer().pause(); // pause the current song
 
         } catch (Exception e) {
             Toast.makeText(this, R.string.error, Toast.LENGTH_SHORT).show();
@@ -182,16 +262,20 @@ public class MP3Player extends AppCompatActivity {
 
     private void next() {
         try {
-            if (musicservice.getMediaPlayer().isPlaying()) musicservice.play(musicservice.getCurrentSongPlaying().getNext());
-        }catch (Exception e) {
+            if (musicservice.getMediaPlayer().isPlaying())
+                musicservice.play(musicservice.getCurrentSongPlaying().getNext());
+            seekBar.setProgress(0);
+        } catch (Exception e) {
             Toast.makeText(this, R.string.error, Toast.LENGTH_SHORT).show();
         }
     }
 
     private void previous() {
         try {
-            if (musicservice.getMediaPlayer().isPlaying()) musicservice.play(musicservice.getCurrentSongPlaying().getPrev());
-        }catch (Exception e) {
+            if (musicservice.getMediaPlayer().isPlaying())
+                musicservice.play(musicservice.getCurrentSongPlaying().getPrev());
+            seekBar.setProgress(0);
+        } catch (Exception e) {
             Toast.makeText(this, R.string.error, Toast.LENGTH_SHORT).show();
         }
     }
@@ -244,7 +328,8 @@ public class MP3Player extends AppCompatActivity {
                         MediaStore.Audio.Media.ARTIST,
                         MediaStore.Audio.Media.ALBUM,
                         MediaStore.Audio.Media.DISPLAY_NAME,
-                        MediaStore.Audio.Media.DATA},
+                        MediaStore.Audio.Media.DATA,
+                        MediaStore.Audio.Media.DURATION},
                 MediaStore.Audio.Media.IS_MUSIC + " > 0 ",
                 null, null
         );
@@ -253,7 +338,7 @@ public class MP3Player extends AppCompatActivity {
             music.moveToFirst();
             Song prev = null;
             do {
-                Song song = new Song(music.getString(0), music.getString(1), music.getString(2), music.getString(3));
+                Song song = new Song(music.getString(0), music.getString(1), music.getString(2), music.getString(3), music.getLong(4));
 
                 if (prev != null) { // play the songs in a playlist, if possible
                     prev.setNext(song);
@@ -267,8 +352,8 @@ public class MP3Player extends AppCompatActivity {
             prev.setNext(songs.get(0)); // play in loop
         }
         music.close();
-        songs.get(0).setPrev(songs.get(songs.size()-1));
-        songs.get(songs.size()-1).setNext(songs.get(0));
+        songs.get(0).setPrev(songs.get(songs.size() - 1));
+        songs.get(songs.size() - 1).setNext(songs.get(0));
         return songs;
     }
 
@@ -278,6 +363,7 @@ public class MP3Player extends AppCompatActivity {
         inflater.inflate(R.menu.menu_mp3_player, menu);
         return super.onCreateOptionsMenu(menu);
     }
+
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();

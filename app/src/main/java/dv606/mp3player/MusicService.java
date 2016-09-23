@@ -5,12 +5,15 @@ import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
+import android.media.MediaRouter;
 import android.net.Uri;
 import android.os.Binder;
 import android.os.IBinder;
@@ -23,12 +26,15 @@ import android.util.Log;
 import android.widget.Toast;
 
 import java.sql.Time;
+import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
 /**
  * Created by Daniel on 2016-09-20.
  */
-public class MusicService extends Service implements MediaPlayer.OnPreparedListener, MediaPlayer.OnErrorListener {
+public class MusicService extends Service implements MediaPlayer.OnPreparedListener,
+        MediaPlayer.OnErrorListener,
+        AudioManager.OnAudioFocusChangeListener {
 
     Notification notification;
     public static NotificationManager notificationManager;
@@ -36,6 +42,7 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
     public MediaPlayer mediaPlayer;
     private MusicBinder musicBinder = null;
     int NOTIFICATION_ID = 1337;
+    private AudioManager audioManager = null;
 
     public void onCreate() {
         super.onCreate();
@@ -44,7 +51,13 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
         }
         mediaPlayer.setOnPreparedListener(this);
         mediaPlayer.setWakeMode(getApplicationContext(), PowerManager.PARTIAL_WAKE_LOCK);
+
         musicBinder = new MusicBinder();
+        audioManager = (AudioManager) getApplicationContext().getSystemService(Context.AUDIO_SERVICE);
+        IntentFilter receiverFilter = new IntentFilter(Intent.ACTION_HEADSET_PLUG);
+        headphoneBroadcastReceiver receiver = new headphoneBroadcastReceiver();
+        registerReceiver( receiver, receiverFilter );
+
     }
 
     @Override
@@ -85,10 +98,9 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
         currentSongPlaying = song;
         MP3Player.setCurrentSongData(currentSongPlaying.getName(), currentSongPlaying.getArtist());
 
-        MP3Player.currSongTime.setText("0:00");
         songDuration = currentSongPlaying.getDuration();
         MP3Player.currSongLength.setText(
-        String.format("%d:%02d",
+        String.format(Locale.getDefault(), "%d:%02d",
                 TimeUnit.MILLISECONDS.toMinutes(songDuration),
                 TimeUnit.MILLISECONDS.toSeconds(songDuration) -
                 TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toMinutes(songDuration))
@@ -99,7 +111,7 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
 
             mediaPlayer.reset(); // reset the resource of player
             mediaPlayer.setDataSource(this, Uri.parse(song.getPath())); // set the song to play
-            mediaPlayer.setAudioStreamType(AudioManager.STREAM_NOTIFICATION); // select the audio stream
+            mediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC); // select the audio stream
             mediaPlayer.prepare(); // prepare the resource
             mediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() // handle the completion
             {
@@ -152,6 +164,8 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
         }
     }
 
+
+
     public static NotificationManager getNotificationManager() {
         return notificationManager;
     }
@@ -162,5 +176,53 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
 
     public Song getCurrentSongPlaying() {
         return currentSongPlaying;
+    }
+
+    public void onAudioFocusChange(int focusChange) {
+        switch (focusChange) {
+            case AudioManager.AUDIOFOCUS_GAIN:
+                // resume playback
+                if (mediaPlayer == null) mediaPlayer = new MediaPlayer();
+                else if (!mediaPlayer.isPlaying()) mediaPlayer.start();
+                mediaPlayer.setVolume(1.0f, 1.0f);
+                break;
+
+            case AudioManager.AUDIOFOCUS_LOSS:
+                // Lost focus for an unbounded amount of time: stop playback and release media player
+                if (mediaPlayer.isPlaying()) mediaPlayer.stop();
+                mediaPlayer.release();
+                mediaPlayer = null;
+                break;
+
+            case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
+                // Lost focus for a short time, but we have to stop
+                // playback. We don't release the media player because playback
+                // is likely to resume
+                //if (mediaPlayer.isPlaying()) mediaPlayer.pause();
+                break;
+
+            case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
+                // Lost focus for a short time, but it's ok to keep playing
+                // at an attenuated level
+                if (mediaPlayer.isPlaying()) mediaPlayer.setVolume(0.1f, 0.1f);
+                break;
+        }
+    }
+    public class headphoneBroadcastReceiver extends BroadcastReceiver {
+        private boolean headsetConnected = false;
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (intent.hasExtra("state")){
+                if (headsetConnected && intent.getIntExtra("state", 0) == 0){
+                    headsetConnected = false;
+                    if (mediaPlayer.isPlaying()){
+                        mediaPlayer.pause();
+
+                    }
+                } else if (!headsetConnected && intent.getIntExtra("state", 0) == 1){
+
+                }
+            }
+        }
     }
 }

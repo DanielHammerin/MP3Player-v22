@@ -5,6 +5,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.database.Cursor;
+import android.media.AudioManager;
+import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
@@ -26,6 +28,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.util.ArrayList;
+import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
 
@@ -72,7 +75,6 @@ public class MP3Player extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_mp3_player);
-
         playPauseButton = (FloatingActionButton) findViewById(R.id.play_pause);
         nextButton = (FloatingActionButton) findViewById(R.id.next_song);
         prevButton = (FloatingActionButton) findViewById(R.id.prev_song);
@@ -82,7 +84,7 @@ public class MP3Player extends AppCompatActivity {
 
         currSongLength = (TextView) findViewById(R.id.songLength);
         currSongTime = (TextView) findViewById(R.id.currentSongTime);
-
+        setVolumeControlStream(AudioManager.STREAM_MUSIC);
         seekBar = (SeekBar) findViewById(R.id.seekbar);
 
         Intent intentt = new Intent(this, MusicService.class);
@@ -148,7 +150,7 @@ public class MP3Player extends AppCompatActivity {
                     int mCurrentPosition = musicservice.getMediaPlayer().getCurrentPosition();
                     seekBar.setProgress(mCurrentPosition / 1000);
 
-                    currSongTime.setText(String.format("%d:%02d",
+                    currSongTime.setText(String.format(Locale.getDefault(), "%d:%02d",
                             TimeUnit.MILLISECONDS.toMinutes(mCurrentPosition),
                             TimeUnit.MILLISECONDS.toSeconds(mCurrentPosition) -
                                     TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toMinutes(mCurrentPosition))
@@ -230,12 +232,12 @@ public class MP3Player extends AppCompatActivity {
 
             @Override
             public void onStartTrackingTouch(SeekBar seekBar) {
-
+                pause();
             }
 
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
-
+                resume();
             }
         });
     }

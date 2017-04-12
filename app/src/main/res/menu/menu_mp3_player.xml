@@ -7,5 +7,15 @@
         android:orderInCategory="100"
         android:title="Close App"
         app:showAsAction="never" />
+    <item
+        android:id="@+id/shareSong"
+        android:orderInCategory="100"
+        android:title="Share Song"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/loopSong"
+        android:orderInCategory="100"
+        android:title="Loop current song"
+        app:showAsAction="never" />
 </menu>
 

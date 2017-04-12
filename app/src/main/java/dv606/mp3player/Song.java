@@ -1,5 +1,7 @@
 package dv606.mp3player;
 
+import java.io.Serializable;
+
 /**
  * A simple class representing MP3 songs (tracks) in a playlist.
  *
@@ -7,7 +9,7 @@ package dv606.mp3player;
  * Ported to Android Studio by Kostiantyn Kucher in 2015.
  * Last modified by Kostiantyn Kucher on 10/09/2015.
  */
-public class Song {
+public class Song implements Serializable{
 
     private final String artist;
     private final String album;
@@ -18,13 +20,34 @@ public class Song {
     private Song next = null;
     private Song prev = null;
 
-    public Song(String artist, String album, String name, String path, long dur)
-    {
+    public Song(String artist, String album, String name, String path, long dur) {
+
+        String trimmedName = name;
+        if (trimmedName.contains(".mp3") || trimmedName.contains(".MP3")) {
+            trimmedName = name.replace(".mp3","").replace(".MP3","");
+        }
+        if (trimmedName.contains("Lyrics") || name.contains("(lyrics)")) {
+            trimmedName = name.replace("Lyrics", "").replace("(lyrics)", "");
+        }
+        if (album.contains("Music")) {
+            String trimmedAlbum;
+            trimmedAlbum = album.replace("Music","");
+            this.album = trimmedAlbum;
+        }
+        else {
+            this.album = album;
+        }
+        this.name = trimmedName;
         this.artist = artist;
-        this.album = album;
-        this.name = name;
-        this.path = path;
         this.duration = dur;
+        this.path = path;
+    }
+    public Song() {
+        artist = "";
+        album = "";
+        name = "";
+        path = "";
+        duration = 0;
     }
 
     public String getArtist()
@@ -78,8 +101,12 @@ public class Song {
         if (artist != null)
             result = artist + " - " + result;
 
-        if (album != null)
+        if (album != null && !album.equals("")) {
             result = result + " (" + album + ")";
+        }
+        else if (album != null && album.equals("")) {
+            result = result + "";
+        }
 
         return result;
     }

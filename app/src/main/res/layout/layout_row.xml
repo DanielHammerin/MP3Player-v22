@@ -6,4 +6,5 @@
     android:textSize="18sp"
 	android:gravity="left|center_vertical"
 	android:padding="10dp">
+	<!--android:background="@drawable/list_row_selector"-->
 </TextView>

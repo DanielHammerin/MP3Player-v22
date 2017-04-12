@@ -1,62 +1,72 @@
 package dv606.mp3player;
 
+import android.app.Activity;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.media.AudioManager;
-import android.media.MediaPlayer;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.IBinder;
+import android.preference.PreferenceManager;
 import android.provider.MediaStore;
 import android.support.design.widget.FloatingActionButton;
+import android.support.design.widget.NavigationView;
 import android.support.v4.content.res.ResourcesCompat;
+import android.support.v4.view.GravityCompat;
+import android.support.v4.widget.DrawerLayout;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v7.internal.view.menu.MenuView;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
+import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+
+import java.io.IOException;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
+import static dv606.mp3player.MusicService.notificationManager;
+
 
 /**
- * A simple MP3 player skeleton for 2DV606 Assignment 2.
  * <p/>
- * Created by Oleksandr Shpak in 2013.
- * Ported to Android Studio by Kostiantyn Kucher in 2015.
- * Last modified by Kostiantyn Kucher on 04/04/2016.
+ * Created by Daniel Hammerin 2016-10-10.
  */
-public class MP3Player extends AppCompatActivity {
-
-    // This is an oversimplified approach which you should improve
-    // Currently, if you exit/re-enter activity, a new instance of player is created
-    // and you can't, e.g., stop the playback for the previous instance,
-    // and if you click a song, you will hear another audio stream started
+public class MP3Player extends AppCompatActivity
+        implements NavigationView.OnNavigationItemSelectedListener{
 
     boolean playing = false;
-    boolean isBound;
-    private MusicService musicservice;
-    Thread seekBarThread = null;
-    Runnable runnable;
+    public static boolean isBound;
+    private static MusicService musicservice;
+    public SharedPreferences prefs;
 
     FloatingActionButton playPauseButton = null;
     FloatingActionButton prevButton = null;
     FloatingActionButton nextButton = null;
 
     public static SeekBar seekBar;
+    public boolean updateBoolean = false;
+    public Song loopingRealNext;
+    private boolean bound = false;
 
     public static TextView currSongName = null;
     public static TextView currSongArtist = null;
@@ -65,7 +75,13 @@ public class MP3Player extends AppCompatActivity {
 
     public static int currentSongPos;
     public static ArrayList<Song> songs = null;
+    public Menu navigationMenu;
+    public NavigationView navigationView;
 
+    private static View currentSongView;
+    public static ListView listView;
+
+    public static PlayListAdapter adapter;
     @Override
     public void onStart() {
         super.onStart();
@@ -91,56 +107,175 @@ public class MP3Player extends AppCompatActivity {
         startService(intentt);
         isBound = bindService(intentt, connection, Context.BIND_AUTO_CREATE);
 
-        final ListView listView = (ListView) findViewById(R.id.list_view);
+        listView = (ListView) findViewById(R.id.list_view);
+        listView.setTextFilterEnabled(true);
         songs = songList();
 
-        listView.setAdapter(new PlayListAdapter(this, songs));
+        adapter = new PlayListAdapter(this, this, songs);
+
+        navigationView = (NavigationView) findViewById(R.id.nav_view);
+        navigationView.setNavigationItemSelectedListener(this);
+        navigationMenu = navigationView.getMenu();
+        navigationView.setLongClickable(true);
+/*
+        SharedPreferences.Editor prefsEditor = prefs.edit();
+        prefsEditor.putString("PLAYLISTS", null);
+        prefsEditor.apply();
+*/
+        prefs = PreferenceManager.getDefaultSharedPreferences(this.getApplicationContext());
+        updatePreferences();
+
+        listView.setAdapter(adapter);
         listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int pos, long arg3) {
                 currentSongPos = pos;
+                //if(currentSongView != null) {
+                //    currentSongView.setBackgroundColor(Color.parseColor("#FFFFFF"));
+                //}
+                adapter.setCurrentSongPos(pos);
+                currentSongView = view;
                 musicservice.play(songs.get(pos));
+                view.setSelected(true);
+                playPauseButton.setImageDrawable(ResourcesCompat.getDrawable(getResources(), android.R.drawable.ic_media_pause, null));
+                //currentSongView.setBackgroundColor(Color.parseColor("#ff9966"));
+                adapter.setCurrentSongPos(pos);
+                adapter.notifyDataSetChanged();
                 updateSeekBar();
             }
         });
-/*
-        runnable = new Runnable() {
+
+        navigationView.setNavigationItemSelectedListener(this);
+        navigationView.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void run() {
-                while (true) {
-                    runOnUiThread(new Runnable() {
+            public void onClick(View v) {
+                updateSongList(navigationView.indexOfChild(v));
+            }
+        });
+        /*
+        for (int i = 2; i < navigationMenu.size(); i++) {
+            MenuItem navMenuItem = navigationMenu.getItem(i);
+            navMenuItem.setOnLongClickListener(new View.OnLongClickListener() {
+                @Override
+                public boolean onLongClick(View v) {
+                    final AlertDialog.Builder builder = new AlertDialog.Builder(MP3Player.this);
+                    //builder.setTitle("Pick a color");
+                    final CharSequence options[] = new CharSequence[] {"Add Songs", "Delete Playlist"};
+                    builder.setItems(options, new DialogInterface.OnClickListener() {
                         @Override
-                        public void run() {
-                            long currentPos = 0;
-                            int length = musicservice.getMediaPlayer().getDuration();
-                            seekBar.setMax(length);
-                            while (musicservice.getMediaPlayer() != null && currentPos < length) {
-                                currentPos = musicservice.getMediaPlayer().getCurrentPosition();
-                                seekBar.setProgress((int) currentPos / 1000);
-                                currSongTime.setText(String.format("%d:%02d",
-                                        TimeUnit.MILLISECONDS.toMinutes(currentPos),
-                                        TimeUnit.MILLISECONDS.toSeconds(currentPos) -
-                                                TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toMinutes(currentPos))
-                                ));
-                                try {
-                                    Thread.sleep(1000);
-                                } catch (Exception e) {
-                                    e.printStackTrace();
-                                }
+                        public void onClick(DialogInterface dialog, int which) {
+                            if (which == 0) {
+
                             }
                         }
                     });
+                    AlertDialog alertBox = builder.create();
+                    alertBox.show();
+                    return true;
                 }
+            });
+        }
+        */
+
+    }
+
+    public void allSongs() {
+        adapter = new PlayListAdapter(this, this, songs);
+        listView.setAdapter(adapter);
+    }
+
+    public void updateSongList(int pos) {
+        String playListsInMenu = prefs.getString("PLAYLISTS", null);
+        Type type = new TypeToken<ArrayList<PlayList>>(){}.getType();
+        ArrayList<PlayList> allPlayLists;
+        Gson gson = new Gson();
+        allPlayLists = gson.fromJson(playListsInMenu,type);
+        for (PlayList p : allPlayLists) {
+            System.out.println(p.getPlayListName());
+        }
+
+        PlayList playListTobeOpened = allPlayLists.get(pos + 1);
+        System.out.println(playListTobeOpened.getPlayListName());
+
+        ArrayList<Song> tempList = playListTobeOpened.getSongsInPlayList();
+        for (Song s : tempList) {
+            if (tempList.indexOf(s) == 0) {
+                s.setPrev(tempList.get(tempList.size()-1));
             }
-        };
-        seekBarThread = new Thread(runnable);
-        seekBarThread.start();
+            else {
+                s.setPrev(tempList.get(tempList.indexOf(s) - 1));
+            }
+            if (tempList.indexOf(s) == tempList.size() - 1) {
+                s.setNext(tempList.get(0));
+            }
+            else {
+                s.setNext(tempList.get(tempList.indexOf(s) + 1));
+            }
+        }
+        playListTobeOpened.setSongsInPlayList(tempList);
+        System.out.println(tempList.size());
+/*
+        for (Song s : playListTobeOpened.getSongsInPlayList()) {
+            System.out.println(s.getName());
+            if (playListTobeOpened.getSongsInPlayList().indexOf(s) == 0) {
+                s.setPrev(playListTobeOpened.getSongsInPlayList().get(playListTobeOpened.getSongsInPlayList().size()-1));
+            }
+            else {
+                s.setPrev(playListTobeOpened.getSongsInPlayList().get(playListTobeOpened.getSongsInPlayList().indexOf(s) - 1));
+            }
+            if (playListTobeOpened.getSongsInPlayList().indexOf(s) == playListTobeOpened.getSongsInPlayList().size() - 1) {
+                s.setNext(playListTobeOpened.getSongsInPlayList().get(0));
+            }
+            else {
+                s.setNext(playListTobeOpened.getSongsInPlayList().get(playListTobeOpened.getSongsInPlayList().indexOf(s) + 1));
+            }
+        }
 */
+        /*
+        for (Song s : playListTobeOpened.getSongsInPlayList()) {
+            System.out.println(s.getName());
+        }
+        System.out.println(playListTobeOpened.getSongsInPlayList().size());
+        */
+        adapter = new PlayListAdapter(this, this, playListTobeOpened.getSongsInPlayList());
+        listView.setAdapter(adapter);
+    }
+
+    public void updatePreferences() {
+        String playListsInMenu = prefs.getString("PLAYLISTS", null);
+        System.out.println(playListsInMenu);
+        if (playListsInMenu != null) {
+            Type type = new TypeToken<ArrayList<PlayList>>(){}.getType();
+            ArrayList<PlayList> allplaylists = new ArrayList<>();
+            Gson gson = new Gson();
+            allplaylists = gson.fromJson(playListsInMenu,type);
+
+            for (PlayList playList: allplaylists) {
+                ArrayList<Song> tempList = playList.getSongsInPlayList();
+                for (Song s : tempList) {
+                    if (tempList.indexOf(s) == 0) {
+                        s.setPrev(tempList.get(tempList.size()-1));
+                    }
+                    else {
+                        s.setPrev(tempList.get(tempList.indexOf(s) - 1));
+                    }
+                    if (tempList.indexOf(s) == tempList.size() - 1) {
+                        s.setNext(tempList.get(0));
+                    }
+                    else {
+                        s.setNext(tempList.get(tempList.indexOf(s) + 1));
+                    }
+                }
+                playList.setSongsInPlayList(tempList);
+                MenuItem newPlaylistItem = navigationMenu.add(playList.getPlayListName());
+                newPlaylistItem.setIcon((ResourcesCompat.getDrawable(getResources(), android.R.drawable.ic_menu_save, null)));
+                navigationView.setNavigationItemSelectedListener(this);
+            }
+        }
     }
 
     public void updateSeekBar() {
         seekBar.setProgress(0);
-        seekBar.setMax((int) musicservice.getCurrentSongPlaying().getDuration() / 1000);
         final Handler mHandler = new Handler();
         runOnUiThread(new Runnable() {
 
@@ -148,6 +283,7 @@ public class MP3Player extends AppCompatActivity {
             public void run() {
                 if(musicservice.getMediaPlayer() != null){
                     int mCurrentPosition = musicservice.getMediaPlayer().getCurrentPosition();
+                    seekBar.setMax((int) musicservice.getCurrentSongPlaying().getDuration() / 1000);
                     seekBar.setProgress(mCurrentPosition / 1000);
 
                     currSongTime.setText(String.format(Locale.getDefault(), "%d:%02d",
@@ -155,13 +291,24 @@ public class MP3Player extends AppCompatActivity {
                             TimeUnit.MILLISECONDS.toSeconds(mCurrentPosition) -
                                     TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toMinutes(mCurrentPosition))
                     ));
+                    currSongLength.setText(
+                            String.format(Locale.getDefault(), "%d:%02d",
+                                    TimeUnit.MILLISECONDS.toMinutes(musicservice.getCurrentSongPlaying().getDuration()),
+                                    TimeUnit.MILLISECONDS.toSeconds(musicservice.getCurrentSongPlaying().getDuration()) -
+                                            TimeUnit.MINUTES.toSeconds(
+                                                    TimeUnit.MILLISECONDS.toMinutes(
+                                                            musicservice.getCurrentSongPlaying().getDuration()))
+                            ));
+
+                    setCurrentSongData(musicservice.getCurrentSongPlaying().getName(), musicservice.getCurrentSongPlaying().getArtist());
+
                 }
                 mHandler.postDelayed(this, 1000);
             }
         });
     }
 
-    private ServiceConnection connection = new ServiceConnection() {
+    public static ServiceConnection connection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
             musicservice = ((MusicService.MusicBinder) service).getService();
@@ -181,9 +328,7 @@ public class MP3Player extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (isBound) {
-            unbindService(connection);
-        }
+        appTerminated(isBound, connection);
     }
 
     @Override
@@ -266,6 +411,23 @@ public class MP3Player extends AppCompatActivity {
         try {
             if (musicservice.getMediaPlayer().isPlaying())
                 musicservice.play(musicservice.getCurrentSongPlaying().getNext());
+            if(currentSongView != null) {
+                if (currentSongPos == songs.size()-1) {
+                    currentSongPos = 0;
+                    listView.setSelection(currentSongPos + 10);
+                    listView.smoothScrollToPositionFromTop(currentSongPos, 0, 10);
+                }
+                else {
+                    currentSongPos++;
+                }
+                adapter.setCurrentSongPos(currentSongPos);
+                adapter.notifyDataSetChanged();
+                /*
+                currentSongView.setBackgroundColor(Color.parseColor("#FFFFFF"));
+                currentSongView = listView.getChildAt(currentSongPos);
+                currentSongView.setBackgroundColor(Color.parseColor("#ff9966"));
+                */
+            }
             seekBar.setProgress(0);
         } catch (Exception e) {
             Toast.makeText(this, R.string.error, Toast.LENGTH_SHORT).show();
@@ -276,29 +438,39 @@ public class MP3Player extends AppCompatActivity {
         try {
             if (musicservice.getMediaPlayer().isPlaying())
                 musicservice.play(musicservice.getCurrentSongPlaying().getPrev());
+            if(currentSongView != null) {
+                if (currentSongPos == 0) {
+                    currentSongPos = songs.size()-1;
+                    listView.setSelection(currentSongPos - 10);
+                    listView.smoothScrollToPositionFromTop(currentSongPos, 0, 10);
+                }
+                else {
+                    currentSongPos--;
+                }
+                adapter.setCurrentSongPos(currentSongPos);
+                adapter.notifyDataSetChanged();
+                /*
+                currentSongView.setBackgroundColor(Color.parseColor("#FFFFFF"));
+                currentSongView = listView.getChildAt(currentSongPos);
+                currentSongView.setBackgroundColor(Color.parseColor("#ff9966"));
+                */
+            }
             seekBar.setProgress(0);
         } catch (Exception e) {
             Toast.makeText(this, R.string.error, Toast.LENGTH_SHORT).show();
+            System.out.println(e);
         }
     }
 
-    private class PlayListAdapter extends ArrayAdapter<Song> {
-        public PlayListAdapter(Context context, ArrayList<Song> objects) {
-            super(context, 0, objects);
+    public static void updateSongColor() {
+        if (currentSongPos == songs.size()-1) {
+            currentSongPos = 0;
         }
-
-        @Override
-        public View getView(int position, View row, ViewGroup parent) {
-            Song data = getItem(position);
-
-            row = getLayoutInflater().inflate(R.layout.layout_row, parent, false);
-
-            TextView name = (TextView) row.findViewById(R.id.label);
-            name.setText(String.valueOf(data));
-            row.setTag(data);
-
-            return row;
+        else {
+            currentSongPos++;
         }
+        adapter.setCurrentSongPos(currentSongPos);
+        adapter.notifyDataSetChanged();
     }
 
     /**
@@ -352,11 +524,80 @@ public class MP3Player extends AppCompatActivity {
             while (music.moveToNext());
 
             prev.setNext(songs.get(0)); // play in loop
+        } else {
+            Toast.makeText(MP3Player.this, "No Music on this device.", Toast.LENGTH_SHORT).show();
         }
         music.close();
         songs.get(0).setPrev(songs.get(songs.size() - 1));
         songs.get(songs.size() - 1).setNext(songs.get(0));
         return songs;
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, final Intent data) {
+        if (requestCode == 1) {
+            if (resultCode == Activity.RESULT_OK) {
+                String newPlaylistName = data.getStringExtra("playListName");
+                Bundle b = data.getExtras();
+                final PlayList newPlaylist = new PlayList();
+                newPlaylist.setSongsInPlayList((ArrayList<Song>) b.getSerializable("array"));
+                newPlaylist.setPlayListName(newPlaylistName);
+
+                /*
+                When storing a new playlist, the next and previous song references
+                needs to be nulled in order for them to be able to be saved in the
+                preferences.
+                These next and prev references are restored when a playlist is loaded
+                again from the preferences.
+                 */
+                for (Song s : newPlaylist.getSongsInPlayList()) {
+                    s.setNext(null);
+                    s.setPrev(null);
+                }
+
+                /*
+                Add the new playlist to the navigation view and give it an icon
+                and a click listener.
+                 */
+                MenuItem newPlaylistItem = navigationMenu.add(newPlaylistName);
+                newPlaylistItem.setIcon((ResourcesCompat.getDrawable(getResources(), android.R.drawable.ic_menu_save, null)));
+                navigationView.setNavigationItemSelectedListener(MP3Player.this);
+
+                /*
+                Now, store the new playlist in the shared preferences.
+                 */
+                SharedPreferences.Editor prefsEditor = prefs.edit();
+                Gson gson = new Gson();
+
+                prefsEditor.putString("PLAYLISTS", null);
+                prefsEditor.apply();
+
+                ArrayList<PlayList> playListsInMenu;
+                String playlistString = prefs.getString("PLAYLISTS", null);
+                /*
+                Check shared prefs for existing playlists.w
+                 */
+                if (playlistString == null) {
+                    playListsInMenu = new ArrayList<>();
+                    playListsInMenu.add(newPlaylist);
+                } else {
+                    Type type = new TypeToken<ArrayList<PlayList>>() {
+                    }.getType();
+                    playListsInMenu = gson.fromJson(playlistString, type);
+                    playListsInMenu.add(newPlaylist);
+
+                }
+                String json = gson.toJson(playListsInMenu);
+                prefsEditor.putString("PLAYLISTS", json);
+                prefsEditor.apply();
+
+                Toast.makeText(MP3Player.this, "New Playlist Created", Toast.LENGTH_LONG).show();
+            }
+
+            if (resultCode == Activity.RESULT_CANCELED) {
+                Toast.makeText(MP3Player.this, "Shit went wrong yo!", Toast.LENGTH_LONG).show();
+            }
+        }
     }
 
     @Override
@@ -367,13 +608,75 @@ public class MP3Player extends AppCompatActivity {
     }
 
     @Override
+    public boolean onNavigationItemSelected(MenuItem menuItem) {
+        int id = menuItem.getItemId();
+
+        if (id == R.id.addPlaylist) {
+            Intent intent = new Intent(MP3Player.this, AddPlaylistActivity.class);
+            //startActivity(intent);
+            startActivityForResult(intent, 1);
+            return true;
+        }
+        else if (id == R.id.allSongs) {
+            allSongs();
+        }
+        else {
+            updateSongList(navigationView.indexOfChild(menuItem.getActionView()));
+        }
+        DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
+        drawer.closeDrawer(GravityCompat.START);
+
+        return true;
+    }
+
+
+
+    @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
 
         if (id == R.id.closeApp) {
             musicservice.tearDownNotification();
+            appTerminated(isBound, connection);
             this.finish();
+        } else if (id == R.id.shareSong) {
+            if (!currSongName.getText().toString().equals("")) {
+                String songName = currSongName.getText().toString();
+                Intent sendIntent = new Intent();
+                sendIntent.setAction(Intent.ACTION_SEND);
+                sendIntent.putExtra(Intent.EXTRA_TEXT, "I am listening to: " + songName + " on Daniels sick mp3");
+                sendIntent.setType("text/plain");
+                startActivity(sendIntent);
+            } else {
+                Toast.makeText(this, "No song playing.", Toast.LENGTH_SHORT).show();
+            }
+        } else if (id == R.id.loopSong) {
+            if (!currSongName.getText().toString().equals("")) {
+                loopSong(item);
+            }
+            else {
+                Toast.makeText(this, "No song playing.", Toast.LENGTH_SHORT).show();
+            }
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    private void loopSong(MenuItem item) {
+        if (item.getTitle().toString().equals("Loop current song")) {
+            loopingRealNext = musicservice.getCurrentSongPlaying().getNext();
+            musicservice.getCurrentSongPlaying().setNext(musicservice.getCurrentSongPlaying());
+            item.setTitle("Stop looping");
+        }
+        else if (item.getTitle().toString().equals("Stop looping")) {
+            musicservice.getCurrentSongPlaying().setNext(loopingRealNext);
+            item.setTitle("Loop current song");
+        }
+    }
+
+    public static void appTerminated(Boolean b, ServiceConnection c) {
+        if (b && c != null && musicservice != null) {
+            musicservice.unbindService(c);
+        }
+        //musicservice.stopForeground(true);
     }
 }

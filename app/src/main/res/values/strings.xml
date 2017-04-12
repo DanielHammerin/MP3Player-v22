@@ -4,4 +4,6 @@
     <string name="nosd">Media storage is not available</string>
     <string name="error">Player crashed</string>
     <string name="stop_playback">Stop playback</string>
+    <color name="pressed_color">#ff9966</color>
+    <color name="default_color">#ffffff</color>
 </resources>

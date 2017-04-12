@@ -9,6 +9,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.ServiceConnection;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.media.AudioManager;
@@ -37,7 +38,7 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
         AudioManager.OnAudioFocusChangeListener {
 
     Notification notification;
-    public static NotificationManager notificationManager;
+    public static NotificationManager notificationManager = null;
     private Song currentSongPlaying = null;
     public MediaPlayer mediaPlayer;
     private MusicBinder musicBinder = null;
@@ -83,7 +84,9 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
     }
     public void tearDownNotification() {
         stopForeground(true);
-        notificationManager.cancel(NOTIFICATION_ID);
+        if (notificationManager != null) {
+            notificationManager.cancel(NOTIFICATION_ID);
+        }
     }
 
     /**
@@ -119,6 +122,7 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
                 public void onCompletion(MediaPlayer mp) {
                     play(song.getNext());
                     MP3Player.seekBar.setProgress(0);
+                    MP3Player.updateSongColor();
                 }
             });
             mediaPlayer.start(); // play!
@@ -132,13 +136,13 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
     @Override
     public void onTaskRemoved(Intent rootIntent) {
         super.onTaskRemoved(rootIntent);
-        stopForeground(true);
-        notificationManager.cancel(NOTIFICATION_ID);
+        MP3Player.appTerminated(MP3Player.isBound, MP3Player.connection);
     }
 
     @Override
     public void onDestroy() {
         super.onDestroy();
+        MP3Player.appTerminated(MP3Player.isBound, MP3Player.connection);
     }
 
     @Nullable

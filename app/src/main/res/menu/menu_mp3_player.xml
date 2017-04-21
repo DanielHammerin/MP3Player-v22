@@ -17,5 +17,10 @@
         android:orderInCategory="100"
         android:title="Loop current song"
         app:showAsAction="never" />
+    <item
+        android:id="@+id/equalizer"
+        android:orderInCategory="100"
+        android:title="Equalizer"
+        app:showAsAction="never" />
 </menu>
 

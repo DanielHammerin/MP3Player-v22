@@ -9,6 +9,8 @@ import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.media.AudioManager;
+import android.media.audiofx.AudioEffect;
+import android.media.audiofx.Equalizer;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
@@ -75,6 +77,7 @@ public class MP3Player extends AppCompatActivity
 
     public static int currentSongPos;
     public static ArrayList<Song> songs = null;
+    public static ArrayList<Song> currentPlaylist = null;
     public Menu navigationMenu;
     public NavigationView navigationView;
 
@@ -82,6 +85,9 @@ public class MP3Player extends AppCompatActivity
     public static ListView listView;
 
     public static PlayListAdapter adapter;
+    public static Equalizer equalizer;
+
+
     @Override
     public void onStart() {
         super.onStart();
@@ -152,6 +158,7 @@ public class MP3Player extends AppCompatActivity
                 updateSongList(navigationView.indexOfChild(v));
             }
         });
+
         /*
         for (int i = 2; i < navigationMenu.size(); i++) {
             MenuItem navMenuItem = navigationMenu.getItem(i);
@@ -184,6 +191,12 @@ public class MP3Player extends AppCompatActivity
         listView.setAdapter(adapter);
     }
 
+    /**
+     * This method updates the songlist array for the playlist selected in the
+     * navigation view bar.
+     * It sets the playlist and adapter to the songs in the playlist.
+     * @param pos
+     */
     public void updateSongList(int pos) {
         String playListsInMenu = prefs.getString("PLAYLISTS", null);
         Type type = new TypeToken<ArrayList<PlayList>>(){}.getType();
@@ -200,15 +213,15 @@ public class MP3Player extends AppCompatActivity
         ArrayList<Song> tempList = playListTobeOpened.getSongsInPlayList();
         for (Song s : tempList) {
             if (tempList.indexOf(s) == 0) {
+                s.setNext(tempList.get(1));
                 s.setPrev(tempList.get(tempList.size()-1));
+            }
+            else if (tempList.indexOf(s) == tempList.size() - 1) {
+                s.setNext(tempList.get(0));
+                s.setPrev(tempList.get(tempList.indexOf(s) - 1));
             }
             else {
                 s.setPrev(tempList.get(tempList.indexOf(s) - 1));
-            }
-            if (tempList.indexOf(s) == tempList.size() - 1) {
-                s.setNext(tempList.get(0));
-            }
-            else {
                 s.setNext(tempList.get(tempList.indexOf(s) + 1));
             }
         }
@@ -237,7 +250,9 @@ public class MP3Player extends AppCompatActivity
         }
         System.out.println(playListTobeOpened.getSongsInPlayList().size());
         */
-        adapter = new PlayListAdapter(this, this, playListTobeOpened.getSongsInPlayList());
+        currentPlaylist = playListTobeOpened.getSongsInPlayList();
+        adapter = new PlayListAdapter(this, this, currentPlaylist);
+        adapter.notifyDataSetChanged();
         listView.setAdapter(adapter);
     }
 
@@ -254,15 +269,15 @@ public class MP3Player extends AppCompatActivity
                 ArrayList<Song> tempList = playList.getSongsInPlayList();
                 for (Song s : tempList) {
                     if (tempList.indexOf(s) == 0) {
+                        s.setNext(tempList.get(1));
                         s.setPrev(tempList.get(tempList.size()-1));
+                    }
+                    else if (tempList.indexOf(s) == tempList.size() - 1) {
+                        s.setNext(tempList.get(0));
+                        s.setPrev(tempList.get(tempList.indexOf(s) - 1));
                     }
                     else {
                         s.setPrev(tempList.get(tempList.indexOf(s) - 1));
-                    }
-                    if (tempList.indexOf(s) == tempList.size() - 1) {
-                        s.setNext(tempList.get(0));
-                    }
-                    else {
                         s.setNext(tempList.get(tempList.indexOf(s) + 1));
                     }
                 }
@@ -312,11 +327,43 @@ public class MP3Player extends AppCompatActivity
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
             musicservice = ((MusicService.MusicBinder) service).getService();
+            equalizer = new Equalizer(1, musicservice.getMpSessionID());
+            equalizer.getNumberOfBands();
+            short[] bandRange = equalizer.getBandLevelRange();
+
+            equalizer.setBandLevel((short) 0, bandRange[0]);
+            equalizer.setBandLevel((short) 1, bandRange[0]);
+            equalizer.setBandLevel((short) 2, bandRange[0]);
+            equalizer.setBandLevel((short) 3, bandRange[0]);
+            equalizer.setBandLevel((short) 4, bandRange[0]);
+
+            equalizer.setEnabled(true);
+            equalizer.getNumberOfPresets();
+            equalizer.setParameterListener(EQlistener);
+            //equalizer.usePreset((short) 11);
         }
 
         @Override
         public void onServiceDisconnected(ComponentName name) {
             musicservice = null;
+            equalizer.release();
+        }
+    };
+
+    public static Equalizer.OnParameterChangeListener EQlistener = new Equalizer.OnParameterChangeListener() {
+        @Override
+        public void onParameterChange(Equalizer effect, int status, int param1, int param2, int value) {
+            System.out.println("EQ param changed.");
+            if (equalizer != null) {
+                equalizer.release();
+                equalizer = new Equalizer(1, musicservice.getMpSessionID());
+                equalizer.setEnabled(true);
+                equalizer.getNumberOfBands();
+                equalizer.getBandLevelRange();
+                equalizer.getNumberOfPresets();
+                equalizer.setParameterListener(EQlistener);
+                //effect.setBandLevel((short) param1, (short) value);
+            }
         }
     };
 
@@ -590,12 +637,35 @@ public class MP3Player extends AppCompatActivity
                 String json = gson.toJson(playListsInMenu);
                 prefsEditor.putString("PLAYLISTS", json);
                 prefsEditor.apply();
-
                 Toast.makeText(MP3Player.this, "New Playlist Created", Toast.LENGTH_LONG).show();
+                return;
             }
 
             if (resultCode == Activity.RESULT_CANCELED) {
                 Toast.makeText(MP3Player.this, "Shit went wrong yo!", Toast.LENGTH_LONG).show();
+            }
+        }
+        else if (requestCode == 2) {
+            if (resultCode == Activity.RESULT_OK) {
+                if (musicservice.getMpSessionID() != AudioManager.ERROR) {
+                    equalizer = new Equalizer(1, musicservice.getMpSessionID());
+                    equalizer.setEnabled(true);
+                    equalizer.getNumberOfBands();
+                    equalizer.getBandLevelRange();
+                    equalizer.getNumberOfPresets();
+                    equalizer.setParameterListener(EQlistener);
+                    equalizer.setBandLevel((short) 0, equalizer.getBandLevel((short) 0));
+                    equalizer.setBandLevel((short) 1, equalizer.getBandLevel((short) 1));
+                    equalizer.setBandLevel((short) 2, equalizer.getBandLevel((short) 2));
+                    equalizer.setBandLevel((short) 3, equalizer.getBandLevel((short) 3));
+                    equalizer.setBandLevel((short) 4, equalizer.getBandLevel((short) 4));
+
+                    Toast.makeText(MP3Player.this, "EQ set.", Toast.LENGTH_LONG).show();
+                }
+
+            }
+            else {
+                Toast.makeText(MP3Player.this, "Couldn't set equalizer.", Toast.LENGTH_LONG).show();
             }
         }
     }
@@ -657,6 +727,15 @@ public class MP3Player extends AppCompatActivity
             else {
                 Toast.makeText(this, "No song playing.", Toast.LENGTH_SHORT).show();
             }
+        } else if (id == R.id.equalizer) {
+            Intent intent = new Intent(AudioEffect.ACTION_DISPLAY_AUDIO_EFFECT_CONTROL_PANEL);
+            //intent.putExtra(AudioEffect.EXTRA_AUDIO_SESSION,);
+            if ((intent.resolveActivity(getPackageManager()) != null)) {
+                startActivityForResult(intent, 2);
+            }
+            else {
+                Toast.makeText(this, "No default equalizer on device.", Toast.LENGTH_SHORT).show();
+            }
         }
         return super.onOptionsItemSelected(item);
     }
@@ -676,7 +755,84 @@ public class MP3Player extends AppCompatActivity
     public static void appTerminated(Boolean b, ServiceConnection c) {
         if (b && c != null && musicservice != null) {
             musicservice.unbindService(c);
+            musicservice.stopSelf();
+
         }
         //musicservice.stopForeground(true);
+    }
+
+    /**
+     * Async task to handle creation and saving of new playlists.
+     * ##DOES NOT WORK YET##
+     */
+    public abstract class MyAsyncTask extends AsyncTask<Object , Object , Object > {
+        protected boolean doInBackground(Intent data, Object... urls) {
+            String newPlaylistName = data.getStringExtra("playListName");
+            Bundle b = data.getExtras();
+            final PlayList newPlaylist = new PlayList();
+            newPlaylist.setSongsInPlayList((ArrayList<Song>) b.getSerializable("array"));
+            newPlaylist.setPlayListName(newPlaylistName);
+
+                /*
+                When storing a new playlist, the next and previous song references
+                needs to be nulled in order for them to be able to be saved in the
+                preferences.
+                These next and prev references are restored when a playlist is loaded
+                again from the preferences.
+                 */
+            for (Song s : newPlaylist.getSongsInPlayList()) {
+                s.setNext(null);
+                s.setPrev(null);
+            }
+
+                /*
+                Add the new playlist to the navigation view and give it an icon
+                and a click listener.
+                 */
+            MenuItem newPlaylistItem = navigationMenu.add(newPlaylistName);
+            newPlaylistItem.setIcon((ResourcesCompat.getDrawable(getResources(), android.R.drawable.ic_menu_save, null)));
+            navigationView.setNavigationItemSelectedListener(MP3Player.this);
+
+                /*
+                Now, store the new playlist in the shared preferences.
+                 */
+            SharedPreferences.Editor prefsEditor = prefs.edit();
+            Gson gson = new Gson();
+
+            prefsEditor.putString("PLAYLISTS", null);
+            prefsEditor.apply();
+
+            ArrayList<PlayList> playListsInMenu;
+            String playlistString = prefs.getString("PLAYLISTS", null);
+                /*
+                Check shared prefs for existing playlists.w
+                 */
+            if (playlistString == null) {
+                playListsInMenu = new ArrayList<>();
+                playListsInMenu.add(newPlaylist);
+            } else {
+                Type type = new TypeToken<ArrayList<PlayList>>() {
+                }.getType();
+                playListsInMenu = gson.fromJson(playlistString, type);
+                playListsInMenu.add(newPlaylist);
+
+            }
+            String json = gson.toJson(playListsInMenu);
+            prefsEditor.putString("PLAYLISTS", json);
+            prefsEditor.apply();
+            return true;
+        }
+        @Override
+        protected void onPreExecute() {
+
+            // this will execute on main thread before Method doInBackground()
+
+            super.onPreExecute();
+        }
+
+        protected void onPostExecute(Object result) {
+            // this will execute on main thread after Method doInBackground()
+
+        }
     }
 }

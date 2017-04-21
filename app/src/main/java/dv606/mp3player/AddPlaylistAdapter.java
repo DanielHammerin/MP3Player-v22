@@ -44,7 +44,6 @@ public class AddPlaylistAdapter extends ArrayAdapter<Song> {
                 row.setBackgroundColor(Color.parseColor("#FFFFFF"));
             }
         }
-
         return row;
     }
 }

@@ -45,6 +45,7 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
     int NOTIFICATION_ID = 1337;
     private AudioManager audioManager = null;
 
+
     public void onCreate() {
         super.onCreate();
         if (mediaPlayer == null) {
@@ -212,6 +213,11 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
                 break;
         }
     }
+
+    public int getMpSessionID() {
+        return mediaPlayer.getAudioSessionId();
+    }
+
     public class headphoneBroadcastReceiver extends BroadcastReceiver {
         private boolean headsetConnected = false;
         @Override

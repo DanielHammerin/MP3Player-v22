@@ -18,6 +18,11 @@
         android:title="Loop current song"
         app:showAsAction="never" />
     <item
+        android:id="@+id/SortList"
+        android:orderInCategory="100"
+        android:title="Sort Acending"
+        app:showAsAction="never" />
+    <item
         android:id="@+id/equalizer"
         android:orderInCategory="100"
         android:title="Equalizer"

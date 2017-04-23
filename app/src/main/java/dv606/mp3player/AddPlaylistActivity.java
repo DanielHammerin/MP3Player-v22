@@ -40,7 +40,11 @@ public class AddPlaylistActivity extends AppCompatActivity {
     private String playlistName;
     public static boolean isAdded;
     public EditText searchBar;
-
+    /*
+    public AddPlaylistActivity(ArrayList<Song> existingSongs) {
+        this.newPlaylistSongsArray = existingSongs;
+    }
+    */
 
     @Override
     protected void onCreate(Bundle savedInstance) {

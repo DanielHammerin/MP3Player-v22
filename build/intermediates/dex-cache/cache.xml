@@ -8,70 +8,70 @@
         optimize="true"
         revision="23.0.1"
         sha1="61a0ff5c29295ec56d7e0bd3d25d95dbf71b4b2b">
-        <dex dex="D:\Users\Daniel\Downloads\MP3Player-v22\MP3Player-v22\app\build\intermediates\transforms\dex\debug\folders\1000\10\support-annotations-22.2.1_bd8e4979cde456804be7fad7faace84243bddf21\classes.dex" />
+        <dex dex="D:\AndroidStudioProjects\MP3Player-v22\MP3Player-v22\app\build\intermediates\transforms\dex\debug\folders\1000\10\support-annotations-22.2.1_bd8e4979cde456804be7fad7faace84243bddf21\classes.dex" />
     </item>
     <item
         is-multidex="true"
-        jar="D:\Users\Daniel\Downloads\MP3Player-v22\MP3Player-v22\app\build\intermediates\exploded-aar\com.android.support\appcompat-v7\22.2.1\jars\classes.jar"
-        jumboMode="true"
-        optimize="true"
-        revision="23.0.1"
-        sha1="4486e953d1f35f8ccab098b1dd67146366d5f731">
-        <dex dex="D:\Users\Daniel\Downloads\MP3Player-v22\MP3Player-v22\app\build\intermediates\transforms\dex\debug\folders\1000\10\com.android.support-appcompat-v7-22.2.1_a5749010e437a8572b8cfe667af75b081029ad1c\classes.dex" />
-    </item>
-    <item
-        is-multidex="true"
-        jar="D:\Users\Daniel\Downloads\MP3Player-v22\MP3Player-v22\app\build\intermediates\incremental-classes\debug\instant-run-bootstrap.jar"
-        jumboMode="true"
-        optimize="true"
-        revision="23.0.1"
-        sha1="be36fd61d42e356021cec747dcadbf49ffd5ab8f">
-        <dex dex="D:\Users\Daniel\Downloads\MP3Player-v22\MP3Player-v22\app\build\intermediates\transforms\dex\debug\folders\1000\10\instant-run-bootstrap_bad855863ab53b21a773bddd1f60c4fd52593390\classes.dex" />
-    </item>
-    <item
-        is-multidex="true"
-        jar="D:\Users\Daniel\Downloads\MP3Player-v22\MP3Player-v22\app\build\intermediates\exploded-aar\com.android.support\support-v4\22.2.1\jars\classes.jar"
+        jar="D:\AndroidStudioProjects\MP3Player-v22\MP3Player-v22\app\build\intermediates\exploded-aar\com.android.support\support-v4\22.2.1\jars\classes.jar"
         jumboMode="true"
         optimize="true"
         revision="23.0.1"
         sha1="f8efd0096475e0daf054267b61544e10dc776503">
-        <dex dex="D:\Users\Daniel\Downloads\MP3Player-v22\MP3Player-v22\app\build\intermediates\transforms\dex\debug\folders\1000\10\com.android.support-support-v4-22.2.1_fd7b77600a797cc003771c15c8ee4dbcbc25f329\classes.dex" />
+        <dex dex="D:\AndroidStudioProjects\MP3Player-v22\MP3Player-v22\app\build\intermediates\transforms\dex\debug\folders\1000\10\com.android.support-support-v4-22.2.1_d18291a458f336947fdd54a11e5283ab0f20ced7\classes.dex" />
     </item>
     <item
         is-multidex="true"
-        jar="D:\Users\Daniel\Downloads\MP3Player-v22\MP3Player-v22\app\build\intermediates\incremental-runtime-classes\debug\instant-run.jar"
-        jumboMode="true"
-        optimize="true"
-        revision="23.0.1"
-        sha1="0f29823cd0ad22691d85e78330ac2f1c8fa152cc">
-        <dex dex="D:\Users\Daniel\Downloads\MP3Player-v22\MP3Player-v22\app\build\intermediates\transforms\dex\debug\folders\1000\10\instant-run_6995ecba6d0d439ac4ce47f44b1853f7a148b910\classes.dex" />
-    </item>
-    <item
-        is-multidex="true"
-        jar="D:\Users\Daniel\Downloads\MP3Player-v22\MP3Player-v22\app\build\intermediates\exploded-aar\com.android.support\design\22.2.1\jars\classes.jar"
-        jumboMode="true"
-        optimize="true"
-        revision="23.0.1"
-        sha1="1821601ddbec5ff125653097812823388700af74">
-        <dex dex="D:\Users\Daniel\Downloads\MP3Player-v22\MP3Player-v22\app\build\intermediates\transforms\dex\debug\folders\1000\10\com.android.support-design-22.2.1_af7e268a2ab738f24d028273dc5ea2392e86d69c\classes.dex" />
-    </item>
-    <item
-        is-multidex="true"
-        jar="D:\Users\Daniel\Downloads\MP3Player-v22\MP3Player-v22\app\libs\gson-2.7.jar"
-        jumboMode="true"
-        optimize="true"
-        revision="23.0.1"
-        sha1="751f548c85fa49f330cecbb1875893f971b33c4e">
-        <dex dex="D:\Users\Daniel\Downloads\MP3Player-v22\MP3Player-v22\app\build\intermediates\transforms\dex\debug\folders\1000\2\gson-2.7_9bcfc5e141522b66411f6fa99634786ad665e685\classes.dex" />
-    </item>
-    <item
-        is-multidex="true"
-        jar="D:\Users\Daniel\Downloads\MP3Player-v22\MP3Player-v22\app\build\intermediates\exploded-aar\com.android.support\support-v4\22.2.1\jars\libs\internal_impl-22.2.1.jar"
+        jar="D:\AndroidStudioProjects\MP3Player-v22\MP3Player-v22\app\build\intermediates\exploded-aar\com.android.support\support-v4\22.2.1\jars\libs\internal_impl-22.2.1.jar"
         jumboMode="true"
         optimize="true"
         revision="23.0.1"
         sha1="c471eaaba13ff64f6e0383d1c30a9cdc9a97efeb">
-        <dex dex="D:\Users\Daniel\Downloads\MP3Player-v22\MP3Player-v22\app\build\intermediates\transforms\dex\debug\folders\1000\10\internal_impl-22.2.1_6ef2d7c6997c0bb623ab44fdc6bf91dff0aa4415\classes.dex" />
+        <dex dex="D:\AndroidStudioProjects\MP3Player-v22\MP3Player-v22\app\build\intermediates\transforms\dex\debug\folders\1000\10\internal_impl-22.2.1_9710600c68e6332948f69ce805014b25663e6485\classes.dex" />
+    </item>
+    <item
+        is-multidex="true"
+        jar="D:\AndroidStudioProjects\MP3Player-v22\MP3Player-v22\app\build\intermediates\exploded-aar\com.android.support\design\22.2.1\jars\classes.jar"
+        jumboMode="true"
+        optimize="true"
+        revision="23.0.1"
+        sha1="1821601ddbec5ff125653097812823388700af74">
+        <dex dex="D:\AndroidStudioProjects\MP3Player-v22\MP3Player-v22\app\build\intermediates\transforms\dex\debug\folders\1000\10\com.android.support-design-22.2.1_416dcfdeaf2cb48284b497a328f0eeb5d88d4df5\classes.dex" />
+    </item>
+    <item
+        is-multidex="true"
+        jar="D:\AndroidStudioProjects\MP3Player-v22\MP3Player-v22\app\build\intermediates\incremental-runtime-classes\debug\instant-run.jar"
+        jumboMode="true"
+        optimize="true"
+        revision="23.0.1"
+        sha1="6a1cb1da0ffd97e0554c4f8fba3139716289948b">
+        <dex dex="D:\AndroidStudioProjects\MP3Player-v22\MP3Player-v22\app\build\intermediates\transforms\dex\debug\folders\1000\10\instant-run_167c44ab946b45aa32bbafb0d01a83d57c71f258\classes.dex" />
+    </item>
+    <item
+        is-multidex="true"
+        jar="D:\AndroidStudioProjects\MP3Player-v22\MP3Player-v22\app\libs\gson-2.7.jar"
+        jumboMode="true"
+        optimize="true"
+        revision="23.0.1"
+        sha1="751f548c85fa49f330cecbb1875893f971b33c4e">
+        <dex dex="D:\AndroidStudioProjects\MP3Player-v22\MP3Player-v22\app\build\intermediates\transforms\dex\debug\folders\1000\2\gson-2.7_382cb0f763010d782cfa4da8388e5cb72452674d\classes.dex" />
+    </item>
+    <item
+        is-multidex="true"
+        jar="D:\AndroidStudioProjects\MP3Player-v22\MP3Player-v22\app\build\intermediates\exploded-aar\com.android.support\appcompat-v7\22.2.1\jars\classes.jar"
+        jumboMode="true"
+        optimize="true"
+        revision="23.0.1"
+        sha1="4486e953d1f35f8ccab098b1dd67146366d5f731">
+        <dex dex="D:\AndroidStudioProjects\MP3Player-v22\MP3Player-v22\app\build\intermediates\transforms\dex\debug\folders\1000\10\com.android.support-appcompat-v7-22.2.1_2333ab73483a83adb9966d86eea4c71875e33d14\classes.dex" />
+    </item>
+    <item
+        is-multidex="true"
+        jar="D:\AndroidStudioProjects\MP3Player-v22\MP3Player-v22\app\build\intermediates\incremental-classes\debug\instant-run-bootstrap.jar"
+        jumboMode="true"
+        optimize="true"
+        revision="23.0.1"
+        sha1="c371d8830d67c123ac7c13fe079d123e955df389">
+        <dex dex="D:\AndroidStudioProjects\MP3Player-v22\MP3Player-v22\app\build\intermediates\transforms\dex\debug\folders\1000\10\instant-run-bootstrap_1c5d1e67853e0bce6257ce28376f7012da3f15ca\classes.dex" />
     </item>
 
 </items>

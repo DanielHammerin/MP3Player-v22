@@ -26,6 +26,7 @@ import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.internal.view.menu.MenuView;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -38,11 +39,14 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.gson.Gson;
+import com.google.gson.internal.bind.ReflectiveTypeAdapterFactory;
 import com.google.gson.reflect.TypeToken;
 
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
@@ -116,6 +120,7 @@ public class MP3Player extends AppCompatActivity
         listView = (ListView) findViewById(R.id.list_view);
         listView.setTextFilterEnabled(true);
         songs = songList();
+        setCurrentSongList(songs);
 
         adapter = new PlayListAdapter(this, this, songs);
 
@@ -141,7 +146,7 @@ public class MP3Player extends AppCompatActivity
                 //}
                 adapter.setCurrentSongPos(pos);
                 currentSongView = view;
-                musicservice.play(songs.get(pos));
+                musicservice.play(getCurrentSongList().get(pos));
                 view.setSelected(true);
                 playPauseButton.setImageDrawable(ResourcesCompat.getDrawable(getResources(), android.R.drawable.ic_media_pause, null));
                 //currentSongView.setBackgroundColor(Color.parseColor("#ff9966"));
@@ -158,21 +163,51 @@ public class MP3Player extends AppCompatActivity
                 updateSongList(navigationView.indexOfChild(v));
             }
         });
-
-        /*
+/*
+        /**
+         *  Loop for setting onLongClickListener on all navMenu items.
+         * /
         for (int i = 2; i < navigationMenu.size(); i++) {
-            MenuItem navMenuItem = navigationMenu.getItem(i);
+            //MenuItem navMenuItem = navigationMenu.getItem(i);
+            final View navMenuItem = new View((Context) navigationMenu.getItem(i));
             navMenuItem.setOnLongClickListener(new View.OnLongClickListener() {
                 @Override
                 public boolean onLongClick(View v) {
+                    final int viewId = i;
                     final AlertDialog.Builder builder = new AlertDialog.Builder(MP3Player.this);
                     //builder.setTitle("Pick a color");
-                    final CharSequence options[] = new CharSequence[] {"Add Songs", "Delete Playlist"};
+                    final CharSequence options[] = new CharSequence[] {"Add Songs", "Delete Playlist", "Rename Playlist"};
                     builder.setItems(options, new DialogInterface.OnClickListener() {
                         @Override
                         public void onClick(DialogInterface dialog, int which) {
                             if (which == 0) {
+                                Intent intent = new Intent(MP3Player.this, AddPlaylistActivity.class);
+                                startActivityForResult(intent, 3);
+                            }
+                            else if (which == 1){
 
+                            }
+                            else {
+                                final AlertDialog.Builder inputAlert = new AlertDialog.Builder(MP3Player.this);
+                                inputAlert.setTitle("Playlist Name:");
+                                //inputAlert.setMessage("We need your name to proceed");
+                                final EditText userInput = new EditText(MP3Player.this);
+                                inputAlert.setView(userInput);
+                                inputAlert.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+                                    @Override
+                                    public void onClick(DialogInterface dialog, int which) {
+                                        navMenuItem.inflate(MP3Player.this, viewId, null).setTe = userInput.getText().toString();
+                                        createPlaylist(playlistName, newPlaylistSongsArray);
+                                    }
+                                });
+                                inputAlert.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                                    @Override
+                                    public void onClick(DialogInterface dialog, int which) {
+                                        dialog.dismiss();
+                                    }
+                                });
+                                AlertDialog alertDialog = inputAlert.create();
+                                alertDialog.show();
                             }
                         }
                     });
@@ -181,21 +216,42 @@ public class MP3Player extends AppCompatActivity
                     return true;
                 }
             });
+            navigationMenu.getItem(i).setActionView(navMenuItem);
         }
         */
 
     }
 
+    /**
+     * Getter for currently playing songlist.
+     * @return
+     */
+    public static ArrayList<Song> getCurrentSongList() {
+        return currentPlaylist;
+    }
+
+    /**
+     * Setter for currently playing songlist.
+     * @param songList
+     */
+    public static void setCurrentSongList(ArrayList<Song> songList) {
+        currentPlaylist = songList;
+    }
+
+    /**
+     * Method for getting all songs playlist.
+     */
     public void allSongs() {
-        adapter = new PlayListAdapter(this, this, songs);
+        adapter = new PlayListAdapter(this, this, getCurrentSongList());
         listView.setAdapter(adapter);
+        adapter.notifyDataSetChanged();
     }
 
     /**
      * This method updates the songlist array for the playlist selected in the
      * navigation view bar.
      * It sets the playlist and adapter to the songs in the playlist.
-     * @param pos
+     * @param pos, the index in the navigation view.
      */
     public void updateSongList(int pos) {
         String playListsInMenu = prefs.getString("PLAYLISTS", null);
@@ -250,12 +306,15 @@ public class MP3Player extends AppCompatActivity
         }
         System.out.println(playListTobeOpened.getSongsInPlayList().size());
         */
-        currentPlaylist = playListTobeOpened.getSongsInPlayList();
-        adapter = new PlayListAdapter(this, this, currentPlaylist);
-        adapter.notifyDataSetChanged();
+        setCurrentSongList(playListTobeOpened.getSongsInPlayList());
+        adapter = new PlayListAdapter(this, this, getCurrentSongList());
         listView.setAdapter(adapter);
+        adapter.notifyDataSetChanged();
     }
 
+    /**
+     * Method for updating the shared preferences when storing or deleting or editing playlists.
+     */
     public void updatePreferences() {
         String playListsInMenu = prefs.getString("PLAYLISTS", null);
         System.out.println(playListsInMenu);
@@ -289,6 +348,9 @@ public class MP3Player extends AppCompatActivity
         }
     }
 
+    /**
+     * Method for updating the position of the seekbar.
+     */
     public void updateSeekBar() {
         seekBar.setProgress(0);
         final Handler mHandler = new Handler();
@@ -323,6 +385,10 @@ public class MP3Player extends AppCompatActivity
         });
     }
 
+    /**
+     * The service connection between the mp3 main activity and the music service.
+     * Also initializes the equalizer.
+     */
     public static ServiceConnection connection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
@@ -349,7 +415,11 @@ public class MP3Player extends AppCompatActivity
             equalizer.release();
         }
     };
-
+    /**
+     * onParameter change listener for the equalizer window.
+     * Listens to the changes of the seekbars of the different bands of the
+     * equalizer.
+     */
     public static Equalizer.OnParameterChangeListener EQlistener = new Equalizer.OnParameterChangeListener() {
         @Override
         public void onParameterChange(Equalizer effect, int status, int param1, int param2, int value) {
@@ -367,6 +437,11 @@ public class MP3Player extends AppCompatActivity
         }
     };
 
+    /**
+     * Method for setting the currently playing songs song name and artist.
+     * @param name
+     * @param artist
+     */
     public static void setCurrentSongData(String name, String artist) {
         currSongName.setText(name);
         currSongArtist.setText(artist);
@@ -378,6 +453,11 @@ public class MP3Player extends AppCompatActivity
         appTerminated(isBound, connection);
     }
 
+    /**
+     * Method for onResume of activity.
+     * Binds onClickListeners of the floating actionbuttons for play/pause, prev, next
+     * Also re-initializes the seekbar.
+     */
     @Override
     protected void onResume() {
         super.onResume();
@@ -434,6 +514,10 @@ public class MP3Player extends AppCompatActivity
         });
     }
 
+    /**
+     * Method for handling the action of clicking the play/pause button.
+     * Case: Resume.
+     */
     private void resume() {
         try {
             musicservice.getMediaPlayer().start();
@@ -443,6 +527,10 @@ public class MP3Player extends AppCompatActivity
         }
     }
 
+    /**
+     * Method for handling the action of clicking the play/pause button.
+     * Case: Pause.
+     */
     private void pause() {
         try {
             if (musicservice.getMediaPlayer().isPlaying())
@@ -454,12 +542,15 @@ public class MP3Player extends AppCompatActivity
         }
     }
 
+    /**
+     * Method for handling the action of clicking next song button
+     */
     private void next() {
         try {
             if (musicservice.getMediaPlayer().isPlaying())
                 musicservice.play(musicservice.getCurrentSongPlaying().getNext());
             if(currentSongView != null) {
-                if (currentSongPos == songs.size()-1) {
+                if (currentSongPos == getCurrentSongList().size()-1) {
                     currentSongPos = 0;
                     listView.setSelection(currentSongPos + 10);
                     listView.smoothScrollToPositionFromTop(currentSongPos, 0, 10);
@@ -481,13 +572,16 @@ public class MP3Player extends AppCompatActivity
         }
     }
 
+    /**
+     * Method for handling the action of clicking previous song button.
+     */
     private void previous() {
         try {
             if (musicservice.getMediaPlayer().isPlaying())
                 musicservice.play(musicservice.getCurrentSongPlaying().getPrev());
             if(currentSongView != null) {
                 if (currentSongPos == 0) {
-                    currentSongPos = songs.size()-1;
+                    currentSongPos = getCurrentSongList().size()-1;
                     listView.setSelection(currentSongPos - 10);
                     listView.smoothScrollToPositionFromTop(currentSongPos, 0, 10);
                 }
@@ -509,6 +603,9 @@ public class MP3Player extends AppCompatActivity
         }
     }
 
+    /**
+     * Method for updating the color of the listview item of a song.
+     */
     public static void updateSongColor() {
         if (currentSongPos == songs.size()-1) {
             currentSongPos = 0;
@@ -580,8 +677,17 @@ public class MP3Player extends AppCompatActivity
         return songs;
     }
 
+    /**
+     * Method for handling onActivityResult from intents.
+     * @param requestCode Which intent that has returned data.
+     * @param resultCode Status of operation.
+     * @param data The data that has been returned.
+     */
     @Override
     protected void onActivityResult(int requestCode, int resultCode, final Intent data) {
+        /**
+         * Requestcode for adding a new playlist.
+         */
         if (requestCode == 1) {
             if (resultCode == Activity.RESULT_OK) {
                 String newPlaylistName = data.getStringExtra("playListName");
@@ -645,6 +751,9 @@ public class MP3Player extends AppCompatActivity
                 Toast.makeText(MP3Player.this, "Shit went wrong yo!", Toast.LENGTH_LONG).show();
             }
         }
+        /**
+         * Requestcode for equalizer.
+         */
         else if (requestCode == 2) {
             if (resultCode == Activity.RESULT_OK) {
                 if (musicservice.getMpSessionID() != AudioManager.ERROR) {
@@ -668,6 +777,12 @@ public class MP3Player extends AppCompatActivity
                 Toast.makeText(MP3Player.this, "Couldn't set equalizer.", Toast.LENGTH_LONG).show();
             }
         }
+        /**
+         * Requestcode for adding songs to already existing playlist.
+         */
+        else if (requestCode == 3) {
+
+        }
     }
 
     @Override
@@ -677,6 +792,11 @@ public class MP3Player extends AppCompatActivity
         return super.onCreateOptionsMenu(menu);
     }
 
+    /**
+     * Main side menu method for handling playlist selection or creation.
+     * @param menuItem
+     * @return
+     */
     @Override
     public boolean onNavigationItemSelected(MenuItem menuItem) {
         int id = menuItem.getItemId();
@@ -688,6 +808,7 @@ public class MP3Player extends AppCompatActivity
             return true;
         }
         else if (id == R.id.allSongs) {
+            setCurrentSongList(songs);
             allSongs();
         }
         else {
@@ -699,8 +820,12 @@ public class MP3Player extends AppCompatActivity
         return true;
     }
 
-
-
+    /**
+     * Method for options in the top right action menu for closing app, sharing song,
+     * looping song, equalizer or sorting songlist.
+     * @param item
+     * @return
+     */
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
@@ -736,10 +861,43 @@ public class MP3Player extends AppCompatActivity
             else {
                 Toast.makeText(this, "No default equalizer on device.", Toast.LENGTH_SHORT).show();
             }
+        } else if (id == R.id.SortList) {
+            sortPlaylist(item);
         }
         return super.onOptionsItemSelected(item);
     }
 
+    /**
+     * Sorts currently playing playlist according to song name, depending on the
+     * string in the menu, sort acending or decending.
+     * @param item
+     */
+    public void sortPlaylist(MenuItem item) {
+        if (item.getTitle().toString().equals("Sort Acending")) {
+            Collections.sort(getCurrentSongList(), new Comparator<Song>() {
+                @Override
+                public int compare(Song lhs, Song rhs) {
+                    return lhs.getName().compareTo(rhs.getName());
+                }
+            });
+            item.setTitle("Sort Decending");
+        }
+        else if (item.getTitle().toString().equals("Sort Decending")) {
+            Collections.sort(getCurrentSongList(), new Comparator<Song>() {
+                @Override
+                public int compare(Song lhs, Song rhs) {
+                    return rhs.getName().compareTo(lhs.getName());
+                }
+            });
+            item.setTitle("Sort Acending");
+        }
+        adapter.notifyDataSetChanged();
+    }
+
+    /**
+     * Method for enabling loop of the currently playing song.
+     * @param item
+     */
     private void loopSong(MenuItem item) {
         if (item.getTitle().toString().equals("Loop current song")) {
             loopingRealNext = musicservice.getCurrentSongPlaying().getNext();
@@ -756,7 +914,6 @@ public class MP3Player extends AppCompatActivity
         if (b && c != null && musicservice != null) {
             musicservice.unbindService(c);
             musicservice.stopSelf();
-
         }
         //musicservice.stopForeground(true);
     }
